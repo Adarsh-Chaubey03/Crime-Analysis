@@ -7,7 +7,7 @@
 [![Ethics](https://img.shields.io/badge/Ethics-Enforced-purple)]()
 
 ---
-
+ytrdsa
 ## Overview
 
 A government-grade AI platform that transforms disparate crime data into actionable intelligence for investigators — while remaining **auditable, ethically constrained, and legally defensible**.
