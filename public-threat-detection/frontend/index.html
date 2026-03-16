@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Threat Detection — Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Real-Time Public Threat Detection</h1>
+        <p class="subtitle">Prototype Dashboard</p>
+    </header>
+
+    <main>
+        <section class="video-panel">
+            <h2>Video Feed</h2>
+            <div class="video-container">
+                <img id="video-feed" src="" alt="Video stream will appear here">
+                <div id="no-feed" class="no-feed-overlay">
+                    <p>No video feed active</p>
+                    <p class="hint">Start a webcam or upload a video below</p>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="btn-webcam" onclick="startWebcam()">Start Webcam</button>
+                <label class="upload-btn">
+                    Upload Video
+                    <input type="file" id="file-input" accept="video/*" onchange="uploadVideo(this)">
+                </label>
+                <button id="btn-stop" onclick="stopFeed()">Stop Feed</button>
+            </div>
+        </section>
+
+        <section class="alerts-panel">
+            <h2>
+                Alerts
+                <span id="alert-count" class="badge">0</span>
+            </h2>
+            <div id="alerts-list" class="alerts-list">
+                <p class="empty-state">No alerts yet. Alerts will appear here in real time.</p>
+            </div>
+            <button id="btn-clear" class="btn-secondary" onclick="clearAlerts()">Clear Alerts</button>
+        </section>
+    </main>
+
+    <footer>
+        <p>AI Crime Intelligence Platform — Public Threat Detection Module (Prototype)</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
