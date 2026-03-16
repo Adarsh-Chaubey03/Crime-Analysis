@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Environment variables
+.env
+.env.*
+
+# Model weights (large binary files — download via code)
+*.pt
+*.pth
+*.onnx
+*.engine
+*.tflite
+
+# Uploaded / temporary video files
+public-threat-detection/backend/uploads/
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Ultralytics run outputs
+runs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Distribution / build
+dist/
+build/
+*.egg-info/
