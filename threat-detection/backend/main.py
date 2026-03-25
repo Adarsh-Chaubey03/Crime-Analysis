@@ -1,0 +1,216 @@
+"""
+ThreatScan AI - FastAPI Backend
+YOLOv8 Threat Detection API
+"""
+import io
+from pathlib import Path
+from typing import List
+
+import cv2
+import numpy as np
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from ultralytics import YOLO
+
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Project root (parent of backend folder)
+PROJECT_ROOT = Path(__file__).parent.parent
+MODEL_PATH = PROJECT_ROOT / "runs/detect/train6/weights/best.pt"
+CONFIDENCE_THRESHOLD = 0.5
+
+
+# =============================================================================
+# MODELS
+# =============================================================================
+
+class Detection(BaseModel):
+    class_name: str
+    confidence: float
+    box: List[int]
+
+
+class DetectionResponse(BaseModel):
+    detections: List[Detection]
+    count: int
+
+
+class HealthResponse(BaseModel):
+    status: str
+    model_loaded: bool
+    device: str
+
+
+# =============================================================================
+# APP SETUP
+# =============================================================================
+
+app = FastAPI(
+    title="ThreatScan AI API",
+    description="Real-time threat detection using YOLOv8",
+    version="1.0.0",
+)
+
+# CORS - Allow React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# =============================================================================
+# MODEL LOADING
+# =============================================================================
+
+def find_model_path() -> Path:
+    """Find the best.pt model file."""
+    # Try configured path first
+    if MODEL_PATH.exists():
+        return MODEL_PATH
+
+    # Search for latest train folder
+    base = PROJECT_ROOT / "runs/detect"
+    if base.exists():
+        train_folders = sorted(
+            [d for d in base.iterdir() if d.is_dir() and d.name.startswith("train")],
+            key=lambda x: x.stat().st_mtime,
+            reverse=True,
+        )
+        for folder in train_folders:
+            best_pt = folder / "weights" / "best.pt"
+            if best_pt.exists():
+                return best_pt
+
+    raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
+
+
+# Load model at startup
+model = None
+device = "cpu"
+
+
+@app.on_event("startup")
+async def load_model():
+    """Load YOLO model on startup."""
+    global model, device
+
+    import torch
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model_path = find_model_path()
+    print(f"[INFO] Loading model: {model_path}")
+    print(f"[INFO] Device: {device}")
+
+    model = YOLO(str(model_path))
+    print("[INFO] Model loaded successfully")
+
+
+# =============================================================================
+# ENDPOINTS
+# =============================================================================
+
+@app.get("/", response_model=HealthResponse)
+async def root():
+    """Health check endpoint."""
+    return HealthResponse(
+        status="ok",
+        model_loaded=model is not None,
+        device=device,
+    )
+
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint."""
+    return HealthResponse(
+        status="ok",
+        model_loaded=model is not None,
+        device=device,
+    )
+
+
+@app.post("/detect", response_model=DetectionResponse)
+async def detect(file: UploadFile = File(...)):
+    """
+    Detect threats in uploaded image.
+
+    Args:
+        file: Image file (JPEG, PNG, etc.)
+
+    Returns:
+        DetectionResponse with list of detections
+    """
+    # Validate model loaded
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    # Validate file
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    # Validate content type
+    content_type = file.content_type or ""
+    if not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type: {content_type}. Expected image/*",
+        )
+
+    try:
+        # Read image
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if image is None:
+            raise HTTPException(status_code=400, detail="Failed to decode image")
+
+        # Run inference
+        results = model(image, device=device, verbose=False, conf=CONFIDENCE_THRESHOLD)
+        result = results[0]
+
+        # Extract detections
+        detections = []
+        for box in result.boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+            class_id = int(box.cls[0])
+            confidence = float(box.conf[0])
+
+            detections.append(
+                Detection(
+                    class_name=model.names[class_id],
+                    confidence=round(confidence, 4),
+                    box=[x1, y1, x2, y2],
+                )
+            )
+
+        return DetectionResponse(
+            detections=detections,
+            count=len(detections),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
