@@ -12,17 +12,13 @@ import {
   VideoOff,
   Camera,
 } from "lucide-react";
+import { API_URL } from "@/lib/api";
+import { Detection, DetectionSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
 // TYPES
 // =============================================================================
-
-interface Detection {
-  class_name: string;
-  confidence: number;
-  box: number[];
-}
 
 interface DetectionResponse {
   detections: Detection[];
@@ -36,7 +32,6 @@ type Mode = "upload" | "webcam";
 // CONFIG
 // =============================================================================
 
-const API_URL = "http://localhost:8000";
 const THREAT_THRESHOLD = 0.6;
 const RENDER_THRESHOLD = 0.5;
 const CAPTURE_INTERVAL_MS = 800;
@@ -46,7 +41,16 @@ const CAPTURE_SIZE = 320;
 // COMPONENT
 // =============================================================================
 
-export function LiveDetection() {
+interface LiveDetectionProps {
+  onDetectionsCaptured?: (
+    detections: Detection[],
+    source: DetectionSource
+  ) => void;
+}
+
+export function LiveDetection({
+  onDetectionsCaptured,
+}: LiveDetectionProps = {}) {
   // Mode state
   const [mode, setMode] = useState<Mode>("webcam");
 
@@ -220,6 +224,7 @@ export function LiveDetection() {
 
       setDetections(visibleDetections);
       setFrameCount((prev) => prev + 1);
+      onDetectionsCaptured?.(visibleDetections, "webcam");
 
       drawWebcamDetections(visibleDetections);
     } catch (err) {
@@ -229,7 +234,7 @@ export function LiveDetection() {
       isProcessingRef.current = false;
       setIsProcessing(false);
     }
-  }, []);
+  }, [onDetectionsCaptured]);
 
   const drawWebcamDetections = useCallback((detections: Detection[]) => {
     const video = videoRef.current;
@@ -361,13 +366,14 @@ export function LiveDetection() {
       const data: DetectionResponse = await response.json();
       setDetections(data.detections);
       setStatus("success");
+      onDetectionsCaptured?.(data.detections, "upload");
 
       drawUploadDetections(data.detections);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Detection failed");
       setStatus("error");
     }
-  }, [selectedFile]);
+  }, [onDetectionsCaptured, selectedFile]);
 
   const drawUploadDetections = useCallback((detections: Detection[]) => {
     const canvas = canvasRef.current;

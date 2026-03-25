@@ -1,6 +1,6 @@
-import { AlertTriangle, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Alert, ThreatClass } from "@/lib/mock-data";
+import { Alert, ThreatClass } from "@/lib/types";
 
 interface AlertItemProps {
   alert: Alert;
@@ -15,6 +15,7 @@ const classIcons: Record<ThreatClass, string> = {
 export function AlertItem({ alert, compact = false }: AlertItemProps) {
   const isHighConfidence = alert.confidence > 0.85;
   const timeAgo = getTimeAgo(alert.timestamp);
+  const icon = classIcons[alert.class] ?? "⚠️";
 
   if (compact) {
     return (
@@ -26,7 +27,7 @@ export function AlertItem({ alert, compact = false }: AlertItemProps) {
             : "bg-surface-light border-border"
         )}
       >
-        <span className="text-lg">{classIcons[alert.class]}</span>
+        <span className="text-lg">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white capitalize">
@@ -59,7 +60,6 @@ export function AlertItem({ alert, compact = false }: AlertItemProps) {
       )}
     >
       <div className="flex items-start gap-4">
-        {/* Icon */}
         <div
           className={cn(
             "flex h-12 w-12 items-center justify-center rounded-lg text-2xl",
@@ -70,10 +70,9 @@ export function AlertItem({ alert, compact = false }: AlertItemProps) {
               : "bg-surface-light"
           )}
         >
-          {classIcons[alert.class]}
+          {icon}
         </div>
 
-        {/* Content */}
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold text-white capitalize">
@@ -94,13 +93,12 @@ export function AlertItem({ alert, compact = false }: AlertItemProps) {
 
           <div className="mt-2 flex items-center gap-4 text-sm text-muted">
             <span>{alert.camera}</span>
-            <span>•</span>
+            <span>&bull;</span>
             <span>{timeAgo}</span>
           </div>
 
-          {/* Confidence bar */}
           <div className="mt-3">
-            <div className="flex items-center justify-between text-xs mb-1">
+            <div className="mb-1 flex items-center justify-between text-xs">
               <span className="text-muted">Confidence</span>
               <span
                 className={cn(
@@ -111,7 +109,7 @@ export function AlertItem({ alert, compact = false }: AlertItemProps) {
                 {(alert.confidence * 100).toFixed(1)}%
               </span>
             </div>
-            <div className="h-2 rounded-full bg-surface-light overflow-hidden">
+            <div className="h-2 overflow-hidden rounded-full bg-surface-light">
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-500",
@@ -123,9 +121,8 @@ export function AlertItem({ alert, compact = false }: AlertItemProps) {
           </div>
         </div>
 
-        {/* Actions */}
         {alert.status === "active" && (
-          <button className="rounded-lg p-2 text-muted hover:text-white hover:bg-surface-light transition-colors">
+          <button className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-light hover:text-white">
             <X className="h-5 w-5" />
           </button>
         )}

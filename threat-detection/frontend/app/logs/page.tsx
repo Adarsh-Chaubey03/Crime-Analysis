@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
-import { mockLogs, ThreatClass } from "@/lib/mock-data";
+import { readSessionData, SessionData } from "@/lib/session-store";
+import { ThreatClass } from "@/lib/types";
 import { formatTimestamp, formatDate, cn } from "@/lib/utils";
 import { Filter, Download, ChevronDown } from "lucide-react";
 
@@ -15,32 +16,66 @@ const classFilters: { label: string; value: ThreatClass | "all" }[] = [
 export default function LogsPage() {
   const [classFilter, setClassFilter] = useState<ThreatClass | "all">("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  const filteredLogs = mockLogs.filter((log) => {
-    if (classFilter === "all") return true;
-    return log.class === classFilter;
+  const [sessionData, setSessionData] = useState<SessionData>({
+    alerts: [],
+    logs: [],
   });
+
+  useEffect(() => {
+    setSessionData(readSessionData());
+  }, []);
+
+  const filteredLogs = useMemo(() => {
+    return sessionData.logs.filter((log) => {
+      if (classFilter === "all") return true;
+      return log.class === classFilter;
+    });
+  }, [classFilter, sessionData.logs]);
+
+  const exportCsv = () => {
+    if (filteredLogs.length === 0) {
+      return;
+    }
+
+    const csv = [
+      ["timestamp", "class", "confidence", "source"].join(","),
+      ...filteredLogs.map((log) =>
+        [
+          log.timestamp.toISOString(),
+          log.class,
+          log.confidence.toFixed(4),
+          log.source,
+        ].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "threatscan-logs.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen">
       <Navbar title="Detection Logs" subtitle="Historical detection records" />
 
-      <div className="p-6 space-y-6">
-        {/* Toolbar */}
+      <div className="space-y-6 p-6">
         <div className="flex items-center justify-between">
-          {/* Filter Dropdown */}
           <div className="relative">
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="flex items-center gap-2 rounded-lg bg-surface border border-border px-4 py-2.5 text-sm font-medium text-white hover:bg-surface-light transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-surface-light"
             >
               <Filter className="h-4 w-4 text-muted" />
-              {classFilters.find((f) => f.value === classFilter)?.label}
+              {classFilters.find((filter) => filter.value === classFilter)?.label}
               <ChevronDown className="h-4 w-4 text-muted" />
             </button>
 
             {isFilterOpen && (
-              <div className="absolute top-full left-0 mt-2 w-48 rounded-lg bg-surface border border-border shadow-lg z-10">
+              <div className="absolute left-0 top-full z-10 mt-2 w-48 rounded-lg border border-border bg-surface shadow-lg">
                 {classFilters.map((filter) => (
                   <button
                     key={filter.value}
@@ -62,28 +97,30 @@ export default function LogsPage() {
             )}
           </div>
 
-          {/* Export Button */}
-          <button className="flex items-center gap-2 rounded-lg bg-primary/20 border border-primary/30 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/30 transition-colors">
+          <button
+            onClick={exportCsv}
+            disabled={filteredLogs.length === 0}
+            className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/20 px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
+          >
             <Download className="h-4 w-4" />
             Export CSV
           </button>
         </div>
 
-        {/* Logs Table */}
-        <div className="rounded-xl bg-surface border border-border overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-surface-light">
-                <th className="px-6 py-4 text-left text-xs font-semibold text-muted uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted">
                   Timestamp
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-muted uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted">
                   Class
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-muted uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted">
                   Confidence
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-muted uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted">
                   Source
                 </th>
               </tr>
@@ -95,9 +132,9 @@ export default function LogsPage() {
                 return (
                   <tr
                     key={log.id}
-                    className="hover:bg-surface-light/50 transition-colors"
+                    className="transition-colors hover:bg-surface-light/50"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-6 py-4">
                       <div>
                         <p className="text-sm font-medium text-white">
                           {formatTimestamp(log.timestamp)}
@@ -107,19 +144,23 @@ export default function LogsPage() {
                         </p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-2">
                         <span className="text-lg">
-                          {log.class === "gun" ? "🔫" : "🔪"}
+                          {log.class === "gun"
+                            ? "🔫"
+                            : log.class === "knife"
+                              ? "🔪"
+                              : "⚠️"}
                         </span>
-                        <span className="text-sm font-medium text-white capitalize">
+                        <span className="text-sm font-medium capitalize text-white">
                           {log.class}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-24 h-2 rounded-full bg-surface-light overflow-hidden">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-surface-light">
                           <div
                             className={cn(
                               "h-full rounded-full",
@@ -138,7 +179,7 @@ export default function LogsPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-6 py-4">
                       <span className="inline-flex items-center rounded-md bg-surface-light px-2.5 py-1 text-xs font-medium text-white">
                         {log.source}
                       </span>
@@ -151,21 +192,22 @@ export default function LogsPage() {
 
           {filteredLogs.length === 0 && (
             <div className="p-12 text-center">
-              <p className="text-muted">No logs found</p>
+              <p className="text-muted">
+                No real logs found. Run detection first to populate this page.
+              </p>
             </div>
           )}
         </div>
 
-        {/* Pagination */}
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted">
-            Showing {filteredLogs.length} of {mockLogs.length} entries
+            Showing {filteredLogs.length} of {sessionData.logs.length} entries
           </p>
           <div className="flex gap-2">
-            <button className="rounded-lg bg-surface border border-border px-4 py-2 text-sm font-medium text-muted hover:text-white hover:bg-surface-light transition-colors">
+            <button className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-surface-light hover:text-white">
               Previous
             </button>
-            <button className="rounded-lg bg-surface border border-border px-4 py-2 text-sm font-medium text-muted hover:text-white hover:bg-surface-light transition-colors">
+            <button className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-surface-light hover:text-white">
               Next
             </button>
           </div>

@@ -71,8 +71,8 @@ export function Sidebar() {
               <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-success animate-pulse" />
             </div>
             <div>
-              <p className="text-sm font-medium text-white">System Active</p>
-              <p className="text-xs text-muted">All cameras online</p>
+              <p className="text-sm font-medium text-white">System Ready</p>
+              <p className="text-xs text-muted">Live data only</p>
             </div>
           </div>
         </div>
