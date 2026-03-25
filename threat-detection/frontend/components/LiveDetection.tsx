@@ -38,9 +38,9 @@ type Mode = "upload" | "webcam";
 
 const API_URL = "http://localhost:8000";
 const THREAT_THRESHOLD = 0.6;
-const RENDER_THRESHOLD = 0.5;      // Only draw boxes above this confidence
-const CAPTURE_INTERVAL_MS = 800;   // ~1.25 FPS (optimized for latency)
-const CAPTURE_SIZE = 320;          // Resize frames before sending
+const RENDER_THRESHOLD = 0.5;
+const CAPTURE_INTERVAL_MS = 800;
+const CAPTURE_SIZE = 320;
 
 // =============================================================================
 // COMPONENT
@@ -149,6 +149,8 @@ export function LiveDetection() {
       }
     }
 
+    isProcessingRef.current = false;
+    setIsProcessing(false);
     setIsStreaming(false);
     setDetections([]);
     setFrameCount(0);
@@ -180,14 +182,16 @@ export function LiveDetection() {
 
       if (!ctx) return;
 
-      // Resize to CAPTURE_SIZE x CAPTURE_SIZE for faster transfer
-      canvas.width = CAPTURE_SIZE;
-      canvas.height = CAPTURE_SIZE;
+      if (canvas.width !== CAPTURE_SIZE) {
+        canvas.width = CAPTURE_SIZE;
+      }
 
-      // Draw video frame scaled to capture size
+      if (canvas.height !== CAPTURE_SIZE) {
+        canvas.height = CAPTURE_SIZE;
+      }
+
       ctx.drawImage(video, 0, 0, CAPTURE_SIZE, CAPTURE_SIZE);
 
-      // Convert canvas to blob (lower quality for speed)
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/jpeg", 0.7);
       });
@@ -208,11 +212,16 @@ export function LiveDetection() {
       }
 
       const data: DetectionResponse = await response.json();
-      setDetections(data.detections);
+      if (!streamRef.current) return;
+
+      const visibleDetections = data.detections.filter(
+        (det) => det.confidence > RENDER_THRESHOLD
+      );
+
+      setDetections(visibleDetections);
       setFrameCount((prev) => prev + 1);
 
-      // Draw detections on overlay
-      drawWebcamDetections(data.detections);
+      drawWebcamDetections(visibleDetections);
     } catch (err) {
       // Silently handle errors during streaming
       console.error("Detection error:", err);
@@ -233,21 +242,22 @@ export function LiveDetection() {
 
     // Match canvas size to video display size
     const rect = video.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    if (canvas.width !== rect.width) {
+      canvas.width = rect.width;
+    }
 
-    // Calculate scale factors
-    const scaleX = rect.width / video.videoWidth;
-    const scaleY = rect.height / video.videoHeight;
+    if (canvas.height !== rect.height) {
+      canvas.height = rect.height;
+    }
 
-    // Clear canvas
+    const scaleX = rect.width / CAPTURE_SIZE;
+    const scaleY = rect.height / CAPTURE_SIZE;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw each detection
     detections.forEach((det) => {
       const [x1, y1, x2, y2] = det.box;
 
-      // Scale coordinates
       const sx1 = x1 * scaleX;
       const sy1 = y1 * scaleY;
       const sx2 = x2 * scaleX;

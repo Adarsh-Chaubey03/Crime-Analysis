@@ -2,12 +2,12 @@
 ThreatScan AI - FastAPI Backend
 YOLOv8 Threat Detection API
 """
-import io
 from pathlib import Path
 from typing import List
 
 import cv2
 import numpy as np
+import torch
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -22,6 +22,7 @@ from ultralytics import YOLO
 PROJECT_ROOT = Path(__file__).parent.parent
 MODEL_PATH = PROJECT_ROOT / "runs/detect/train6/weights/best.pt"
 CONFIDENCE_THRESHOLD = 0.5
+INFERENCE_IMAGE_SIZE = 416
 
 
 # =============================================================================
@@ -104,8 +105,6 @@ async def load_model():
     """Load YOLO model on startup."""
     global model, device
 
-    import torch
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model_path = find_model_path()
@@ -113,6 +112,7 @@ async def load_model():
     print(f"[INFO] Device: {device}")
 
     model = YOLO(str(model_path))
+    model.to(device)
     print("[INFO] Model loaded successfully")
 
 
@@ -168,16 +168,20 @@ async def detect(file: UploadFile = File(...)):
         )
 
     try:
-        # Read image
         contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        image = cv2.imdecode(np.frombuffer(contents, dtype=np.uint8), cv2.IMREAD_COLOR)
 
         if image is None:
             raise HTTPException(status_code=400, detail="Failed to decode image")
 
-        # Run inference
-        results = model(image, device=device, verbose=False, conf=CONFIDENCE_THRESHOLD)
+        with torch.inference_mode():
+            results = model(
+                image,
+                device=device,
+                imgsz=INFERENCE_IMAGE_SIZE,
+                verbose=False,
+                conf=CONFIDENCE_THRESHOLD,
+            )
         result = results[0]
 
         # Extract detections
