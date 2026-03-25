@@ -1,0 +1,17 @@
+# YOLOv8 Dataset Configuration
+# Weapon Detection Dataset
+
+# Dataset root path (absolute or relative to training script)
+path: data/dataset
+
+# Train and validation paths (relative to 'path')
+train: train/images
+val: val/images
+
+# Number of classes
+nc: 2
+
+# Class names
+names:
+  0: knife
+  1: gun

@@ -1,7 +1,5 @@
---index-url https://download.pytorch.org/whl/cpu
-torch
-torchvision
 ultralytics>=8.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0
 Pillow>=9.5.0
+pyyaml>=6.0

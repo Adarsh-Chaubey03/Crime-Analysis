@@ -1,0 +1,16 @@
+# Example YOLO Label Format
+# Each line: class_id x_center y_center width height
+# All values normalized (0-1)
+#
+# class_id: 0 = knife, 1 = gun
+# x_center: center x coordinate / image_width
+# y_center: center y coordinate / image_height
+# width: bbox_width / image_width
+# height: bbox_height / image_height
+#
+# Example: Gun detected at center of image, ~30% width, ~40% height
+1 0.5 0.5 0.3 0.4
+
+# Multiple objects example:
+# 0 0.25 0.30 0.15 0.20
+# 1 0.70 0.60 0.25 0.35
