@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env/
+.venv/
+
+# YOLO outputs
+runs/
+
+# Large model files
+*.pt
+*.pth
+*.onnx
+
+# Dataset (very important - too large for git)
+data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
