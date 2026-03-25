@@ -10,6 +10,8 @@ from pathlib import Path
 from datetime import datetime
 from ultralytics import YOLO
 
+from src.utils.model_loader import find_best_model
+
 # Windows sound support
 try:
     import winsound
@@ -26,7 +28,9 @@ ALERT_THRESHOLD = 0.6
 CONFIDENCE_THRESHOLD = 0.5
 ALERT_COOLDOWN = 2.0  # seconds between alerts
 
-LOG_DIR = Path("logs")
+# Use project root for log/snapshot paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+LOG_DIR = PROJECT_ROOT / "logs"
 SNAPSHOT_DIR = LOG_DIR / "snapshots"
 EVENT_LOG_FILE = LOG_DIR / "events.csv"
 
@@ -161,31 +165,6 @@ class CooldownManager:
             self.last_alert_time = current_time
             return True
         return False
-
-
-# =============================================================================
-# MODEL FUNCTIONS
-# =============================================================================
-
-def find_best_model(base_path="runs/detect"):
-    """Auto-detect best.pt from latest train folder."""
-    base = Path(base_path)
-
-    if not base.exists():
-        return None
-
-    train_folders = sorted(
-        [d for d in base.iterdir() if d.is_dir() and d.name.startswith("train")],
-        key=lambda x: x.stat().st_mtime,
-        reverse=True
-    )
-
-    for folder in train_folders:
-        best_pt = folder / "weights" / "best.pt"
-        if best_pt.exists():
-            return best_pt
-
-    return None
 
 
 # =============================================================================

@@ -1,12 +1,15 @@
 """
 YOLOv8 Object Detection Pipeline
-Real-time detection using pretrained YOLOv8n model.
+Core detection class using YOLO models.
 """
 import cv2
 import argparse
 import sys
 from pathlib import Path
 from ultralytics import YOLO
+
+from src.utils.video_capture import VideoCapture
+from src.utils.model_loader import find_pretrained_model
 
 
 class ObjectDetector:
@@ -45,7 +48,7 @@ class ObjectDetector:
             frame: BGR image (numpy array)
 
         Returns:
-            List of detections: [(bbox, class_name, confidence), ...]
+            List of detections: [{"bbox": tuple, "class": str, "confidence": float}, ...]
         """
         results = self.model(frame, device=self.device, verbose=False)[0]
         detections = []
@@ -68,51 +71,6 @@ class ObjectDetector:
                 })
 
         return detections
-
-
-class VideoCapture:
-    """Handles video capture from webcam or file."""
-
-    def __init__(self, source=0):
-        self.source = source
-        self.cap = None
-        self.frame_width = 0
-        self.frame_height = 0
-        self.fps = 0
-
-    def open(self):
-        if isinstance(self.source, str):
-            if not Path(self.source).exists():
-                raise FileNotFoundError(f"Video file not found: {self.source}")
-
-        self.cap = cv2.VideoCapture(self.source)
-
-        if not self.cap.isOpened():
-            raise RuntimeError(f"Failed to open video source: {self.source}")
-
-        self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30
-
-        print(f"[INFO] Video source: {self.source}")
-        print(f"[INFO] Resolution: {self.frame_width}x{self.frame_height}")
-
-        return self
-
-    def read(self):
-        if self.cap is None:
-            return False, None
-        return self.cap.read()
-
-    def release(self):
-        if self.cap is not None:
-            self.cap.release()
-
-    def __enter__(self):
-        return self.open()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.release()
 
 
 def draw_detections(frame, detections):
@@ -177,7 +135,7 @@ def run_detection(source=0, model_path="yolov8n.pt", confidence=0.5):
 
     try:
         with VideoCapture(source) as video:
-            print(f"[INFO] Press 'q' to quit")
+            print("[INFO] Press 'q' to quit")
 
             while True:
                 ret, frame = video.read()

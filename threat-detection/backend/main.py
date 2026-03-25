@@ -2,6 +2,7 @@
 ThreatScan AI - FastAPI Backend
 YOLOv8 Threat Detection API
 """
+import sys
 from pathlib import Path
 from typing import List
 
@@ -13,18 +14,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ultralytics import YOLO
 
+# Add project root to path so we can import from src/
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.utils.model_loader import find_best_model
+
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-# Project root (parent of backend folder)
-PROJECT_ROOT = Path(__file__).parent.parent
 MODEL_PATH = PROJECT_ROOT / "runs/detect/train6/weights/best.pt"
 CONFIDENCE_THRESHOLD = 0.5
 INFERENCE_IMAGE_SIZE = 416
-
-
 # =============================================================================
 # MODELS
 # =============================================================================
@@ -72,31 +75,6 @@ app.add_middleware(
 )
 
 
-# =============================================================================
-# MODEL LOADING
-# =============================================================================
-
-def find_model_path() -> Path:
-    """Find the best.pt model file."""
-    # Try configured path first
-    if MODEL_PATH.exists():
-        return MODEL_PATH
-
-    # Search for latest train folder
-    base = PROJECT_ROOT / "runs/detect"
-    if base.exists():
-        train_folders = sorted(
-            [d for d in base.iterdir() if d.is_dir() and d.name.startswith("train")],
-            key=lambda x: x.stat().st_mtime,
-            reverse=True,
-        )
-        for folder in train_folders:
-            best_pt = folder / "weights" / "best.pt"
-            if best_pt.exists():
-                return best_pt
-
-    raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
-
 
 # Load model at startup
 model = None
@@ -110,7 +88,15 @@ async def load_model():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model_path = find_model_path()
+    # Try configured path first, then auto-detect
+    if MODEL_PATH.exists():
+        model_path = MODEL_PATH
+    else:
+        model_path = find_best_model()
+
+    if model_path is None:
+        raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
+
     print(f"[INFO] Loading model: {model_path}")
     print(f"[INFO] Device: {device}")
 

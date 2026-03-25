@@ -16,6 +16,7 @@ runs/
 *.pt
 *.pth
 *.onnx
+!models/.gitkeep
 
 # Dataset (very important - too large for git)
 data/

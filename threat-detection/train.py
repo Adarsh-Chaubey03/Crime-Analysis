@@ -6,8 +6,8 @@ from ultralytics import YOLO
 
 
 def main():
-    # Load pretrained YOLOv8 nano model
-    model = YOLO("yolov8n.pt")
+    # Load pretrained YOLOv8 nano model from models/ directory
+    model = YOLO("models/yolov8n.pt")
 
     # Train on custom dataset
     # If CUDA OOM → reduce batch to 2
